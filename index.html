@@ -14,7 +14,6 @@
         --accent-2: #ff5722;
         --bg: #060614;
       }
-
       html,
       body {
         height: 100%;
@@ -135,7 +134,7 @@
         filter: brightness(1.35) drop-shadow(0 0 26px rgba(255, 140, 50, 0.9));
       }
 
-      /* hint text */
+      /* hint */
       #hint {
         position: fixed;
         bottom: 80px;
@@ -159,8 +158,8 @@
         left: 50%;
         top: 50%;
         transform: translate(-50%, -50%) scale(0.98);
-        width: min(86vw, 420px); /* thay 420px nếu muốn to hơn */
-        aspect-ratio: 3 / 4; /* giữ khung dọc */
+        width: min(86vw, 420px);
+        aspect-ratio: 3 / 4;
         padding: 0;
         border-radius: 14px;
         overflow: hidden;
@@ -177,7 +176,6 @@
         transform: translate(-50%, -50%) scale(1);
       }
 
-      /* wish-card placed as column */
       .wish-card {
         height: 100%;
         display: flex;
@@ -189,9 +187,9 @@
         width: 100%;
         height: 100%;
         overflow: hidden;
-        background: #eee;
         display: block;
         flex: 1 1 auto;
+        background: #eee;
       }
       .wish-media img {
         width: 100%;
@@ -236,6 +234,50 @@
           padding: 12px;
         }
       }
+
+      /* --- SOUND OVERLAY --- */
+      #sound-overlay {
+        position: fixed;
+        left: 50%;
+        bottom: 22%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.6);
+        color: #fff;
+        padding: 12px 18px;
+        border-radius: 999px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        z-index: 5000;
+        backdrop-filter: blur(6px);
+        transition: opacity 0.28s ease, transform 0.28s ease;
+      }
+      #sound-overlay.hidden {
+        opacity: 0;
+        pointer-events: none;
+        transform: translateX(-50%) translateY(10px);
+      }
+      #sound-enable-btn {
+        background: linear-gradient(90deg, #ff8a4d, #ff5722);
+        color: #fff;
+        border: 0;
+        padding: 8px 14px;
+        border-radius: 999px;
+        font-weight: 700;
+        cursor: pointer;
+        box-shadow: 0 6px 20px rgba(255, 100, 30, 0.18);
+      }
+      #sound-overlay .sound-sub {
+        font-size: 12px;
+        color: #ffd8b8;
+        opacity: 0.95;
+      }
+      @media (min-width: 900px) {
+        #sound-overlay {
+          bottom: 12%;
+        }
+      }
     </style>
   </head>
   <body>
@@ -246,7 +288,7 @@
 
       <div id="lantern-container"></div>
 
-      <!-- Popup: portrait card (image above, text below) -->
+      <!-- Popup: portrait card -->
       <div
         id="wish-popup"
         role="dialog"
@@ -256,14 +298,23 @@
 
       <div id="hint">Chạm vào đèn trời</div>
 
-      <audio id="bg-music" loop>
+      <!-- Sound overlay (initial visible) -->
+      <div id="sound-overlay">
+        <button id="sound-enable-btn" aria-label="Bật nhạc">
+          Chạm để bật nhạc
+        </button>
+        <div class="sound-sub">(Bấm 1 lần để nghe)</div>
+      </div>
+
+      <!-- audio element muted by default -->
+      <audio id="bg-music" loop muted>
         <source src="a.mp3" type="audio/mp3" />
         Trình duyệt của bạn không hỗ trợ audio.
       </audio>
     </div>
 
     <script>
-      /* ===== Starfield & meteors (unchanged) ===== */
+      // ===== Starfield & meteors =====
       const canvas = document.getElementById("starfield");
       const ctx = canvas.getContext("2d");
       let w,
@@ -349,9 +400,7 @@
       resizeCanvas();
       loop();
 
-      /* ===== Wishes data (sequential) =====
-       Put your portrait images in the same folder: wish1.jpg ... wish5.jpg
-    */
+      /* ===== Wishes data & sequential state ===== */
       const wishes = [
         {
           text: "Chúc bạn Khánh Linh trung thu thiệt vuii nhaaa!",
@@ -365,20 +414,15 @@
         { text: "Khi bùn hay dận chuyện dìii, thìi", img: "5.jpg" },
         { text: "Hãy nhớ đến tui nhaaaa!", img: "2.jpg" },
       ];
-
-      // preload images
       wishes.forEach((w) => {
         const im = new Image();
         im.src = w.img;
       });
-
-      // sequential index (keeps state across clicks)
       let wishIndex = 0;
 
       const lanternContainer = document.getElementById("lantern-container");
       const wishPopup = document.getElementById("wish-popup");
 
-      // show popup for a given index (portrait layout)
       function showWishAt(i) {
         const wObj = wishes[i % wishes.length];
         wishPopup.innerHTML = `
@@ -392,12 +436,9 @@
           </div>
         </div>
       `;
-
-        // show popup
         wishPopup.classList.add("show");
         wishPopup.style.display = "block";
 
-        // attach handlers and cleanup token
         const closeBtn = wishPopup.querySelector(".wish-close");
         function onClose(e) {
           e && e.stopPropagation();
@@ -410,7 +451,6 @@
         }
         wishPopup.addEventListener("click", stopProp);
 
-        // store cleanup to remove listeners later
         wishPopup._cleanup = () => {
           closeBtn.removeEventListener("click", onClose);
           wishPopup.removeEventListener("click", stopProp);
@@ -427,7 +467,7 @@
         }, 260);
       }
 
-      // create lanterns (each click will show the next wish in order)
+      /* ===== Create lanterns (click shows next wish sequentially) ===== */
       function createLantern() {
         const wrapper = document.createElement("div");
         wrapper.className = "lantern-wrapper";
@@ -439,7 +479,6 @@
         lantern.src = "./den.png";
         lantern.className = "lantern swing";
 
-        // random layer sizing
         const layer = Math.floor(Math.random() * 3) + 1;
         let size = 40,
           duration = 10000,
@@ -481,14 +520,12 @@
 
         setTimeout(() => wrapper.remove(), duration);
 
-        // click shows next wish sequentially
         lantern.addEventListener("click", (e) => {
           e.stopPropagation();
           showWishAt(wishIndex);
           wishIndex = (wishIndex + 1) % wishes.length;
         });
 
-        // hover/touch to show glow temporarily
         wrapper.addEventListener("pointerenter", () => {
           wrapper.classList.add("hover-active");
           try {
@@ -511,10 +548,9 @@
         );
       }
 
-      // spawn lanterns
       setInterval(createLantern, 500);
 
-      // close popup on outside click or Esc
+      // hide popup on outside click or Esc
       document.addEventListener("click", () => {
         if (wishPopup.classList.contains("show")) hideWish();
       });
@@ -522,34 +558,69 @@
         if (e.key === "Escape") hideWish();
       });
 
-      // music + hint
-      const bg = document.getElementById("bg-music");
-      const hint = document.getElementById("hint");
-      let musicStarted = false;
-      document.addEventListener("pointerdown", function startMusicOnce() {
-        if (!musicStarted && bg) {
-          bg.volume = 0;
-          bg.play()
-            .then(() => {
-              let v = 0;
-              const fadeIn = setInterval(() => {
-                v += 0.05;
-                if (v >= 0.9) {
-                  v = 0.9;
-                  clearInterval(fadeIn);
-                }
-                bg.volume = v;
-              }, 120);
-              musicStarted = true;
-              for (let i = 0; i < 4; i++) setTimeout(createLantern, i * 300);
-            })
-            .catch(() => {
-              console.log("Autoplay music blocked");
-            });
-        }
-        document.removeEventListener("pointerdown", startMusicOnce);
-      });
+      /* ===== SOUND UNLOCKER: overlay to enable audio inside user gesture ===== */
+      (function installSoundUnlocker() {
+        const overlay = document.getElementById("sound-overlay");
+        const btn = document.getElementById("sound-enable-btn");
+        const bg = document.getElementById("bg-music");
 
+        async function enableSoundOnce() {
+          try {
+            // try resume WebAudio if needed (create an audio context once)
+            if (window.AudioContext || window.webkitAudioContext) {
+              try {
+                if (!window._audioContext) {
+                  window._audioContext = new (window.AudioContext ||
+                    window.webkitAudioContext)();
+                }
+                await window._audioContext.resume();
+              } catch (e) {
+                console.debug("AudioContext resume/create failed:", e);
+              }
+            }
+
+            if (bg) {
+              try {
+                bg.muted = false;
+                // try to play (inside user gesture)
+                await bg.play();
+              } catch (errPlay) {
+                console.warn("bg.play() failed inside gesture:", errPlay);
+              }
+            }
+
+            // spawn a few lanterns immediately for nice effect (same as before)
+            for (let i = 0; i < 4; i++) setTimeout(createLantern, i * 250);
+          } catch (err) {
+            console.error("enableSoundOnce err", err);
+          } finally {
+            if (overlay) overlay.classList.add("hidden");
+            document.removeEventListener("pointerdown", docHandler);
+            document.removeEventListener("touchstart", docHandler);
+            if (btn) btn.removeEventListener("click", btnHandler);
+          }
+        }
+
+        function btnHandler(e) {
+          e.stopPropagation();
+          enableSoundOnce();
+        }
+        function docHandler(e) {
+          enableSoundOnce();
+        }
+
+        if (overlay && btn) {
+          // overlay shown by default; if you prefer to hide overlay on desktop, add a condition
+          // e.g. if(window.innerWidth > 900) overlay.classList.add('hidden');
+          overlay.classList.remove("hidden"); // ensure visible
+          btn.addEventListener("click", btnHandler, { once: true });
+          document.addEventListener("pointerdown", docHandler, { once: true });
+          document.addEventListener("touchstart", docHandler, { once: true });
+        }
+      })();
+
+      // show hint briefly
+      const hint = document.getElementById("hint");
       setTimeout(() => {
         if (hint) hint.style.opacity = "1";
         setTimeout(() => {
@@ -559,4 +630,3 @@
     </script>
   </body>
 </html>
-
