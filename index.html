@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Trung Thu - Lời chúc có ảnh (Portrait)</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Mali:wght@300;400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --accent: #ff7f50;
+        --accent-2: #ff5722;
+        --bg: #060614;
+      }
+
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        font-family: "Mali", cursive;
+        background: var(--bg);
+        overflow: hidden;
+        color: #fff;
+      }
+
+      .stage {
+        position: relative;
+        min-height: 100vh;
+        overflow: hidden;
+      }
+      canvas#starfield {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      .moon {
+        position: absolute;
+        top: 60px;
+        right: 100px;
+        width: 160px;
+        height: 160px;
+        border-radius: 50%;
+        background: radial-gradient(
+          circle at 30% 30%,
+          #fff,
+          #f8f8f8 70%,
+          #e0e0e0 100%
+        );
+        box-shadow: 0 0 50px #ffffff7a;
+        z-index: 10;
+      }
+      @media (max-width: 600px) {
+        .moon {
+          top: 40px;
+          right: 14px;
+          width: 70px;
+          height: 70px;
+        }
+      }
+
+      #lantern-container {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        overflow: hidden;
+        z-index: 10;
+      }
+
+      /* lantern wrapper + glow */
+      .lantern-wrapper {
+        position: absolute;
+        pointer-events: auto;
+        display: block;
+        transform-origin: center bottom;
+      }
+      .lantern-wrapper .glow {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%) scale(0.9);
+        width: 160px;
+        height: 160px;
+        border-radius: 50%;
+        background: radial-gradient(
+          circle,
+          rgba(255, 150, 60, 0.55),
+          rgba(255, 120, 20, 0.08) 55%,
+          transparent 75%
+        );
+        filter: blur(18px);
+        opacity: 0;
+        transition: transform 0.28s, opacity 0.28s, width 0.28s, height 0.28s;
+        pointer-events: none;
+        z-index: 1;
+      }
+      .lantern-wrapper .lantern {
+        position: relative;
+        display: block;
+        width: 40px;
+        z-index: 2;
+        transition: transform 0.28s, filter 0.28s;
+        user-select: none;
+      }
+      .lantern-wrapper .swing {
+        animation: swing 2s ease-in-out infinite;
+      }
+      @keyframes swing {
+        0% {
+          transform: rotate(-5deg);
+        }
+        50% {
+          transform: rotate(5deg);
+        }
+        100% {
+          transform: rotate(-5deg);
+        }
+      }
+
+      /* active/hover: show glow */
+      .lantern-wrapper:hover .glow,
+      .lantern-wrapper.hover-active .glow {
+        transform: translate(-50%, -60%) scale(1.18);
+        opacity: 1;
+        width: 320px;
+        height: 320px;
+      }
+      .lantern-wrapper:hover .lantern,
+      .lantern-wrapper.hover-active .lantern {
+        transform: translateY(-10px) scale(1.18);
+        filter: brightness(1.35) drop-shadow(0 0 26px rgba(255, 140, 50, 0.9));
+      }
+
+      /* hint text */
+      #hint {
+        position: fixed;
+        bottom: 80px;
+        left: 50%;
+        transform: translateX(-50%);
+        color: #ffa722;
+        padding: 10px 20px;
+        border-radius: 10px;
+        font-size: 20px;
+        font-weight: 700;
+        opacity: 0;
+        transition: opacity 0.5s;
+        z-index: 1000;
+        text-shadow: 0 0 10px #ff8a50;
+        pointer-events: none;
+      }
+
+      /* === POPUP: portrait layout (aspect ~3/4) === */
+      #wish-popup {
+        position: fixed;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%) scale(0.98);
+        width: min(86vw, 420px); /* thay 420px nếu muốn to hơn */
+        aspect-ratio: 3 / 4; /* giữ khung dọc */
+        padding: 0;
+        border-radius: 14px;
+        overflow: hidden;
+        display: none;
+        z-index: 2000;
+        box-shadow: 0 8px 40px rgba(0, 0, 0, 0.45);
+        transition: transform 0.28s ease, opacity 0.28s ease;
+        background: #fff;
+        color: #222;
+      }
+      #wish-popup.show {
+        display: block;
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+      }
+
+      /* wish-card placed as column */
+      .wish-card {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0;
+      }
+      .wish-media {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #eee;
+        display: block;
+        flex: 1 1 auto;
+      }
+      .wish-media img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+      .wish-text {
+        padding: 14px 16px;
+        text-align: center;
+        font-weight: 700;
+        color: var(--accent-2);
+        background: #fff;
+        font-size: 1rem;
+        line-height: 1.2;
+      }
+      .wish-close {
+        position: absolute;
+        right: 10px;
+        top: 8px;
+        background: transparent;
+        border: 0;
+        font-size: 20px;
+        cursor: pointer;
+        color: rgba(0, 0, 0, 0.6);
+        z-index: 10;
+      }
+
+      @media (min-width: 900px) {
+        #wish-popup {
+          width: 420px;
+        }
+      }
+      @media (max-width: 520px) {
+        #wish-popup {
+          width: min(92vw, 360px);
+          aspect-ratio: 3 / 4;
+          border-radius: 12px;
+        }
+        .wish-text {
+          font-size: 0.95rem;
+          padding: 12px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="stage">
+      <canvas id="starfield"></canvas>
+
+      <div class="moon" aria-hidden="true"></div>
+
+      <div id="lantern-container"></div>
+
+      <!-- Popup: portrait card (image above, text below) -->
+      <div
+        id="wish-popup"
+        role="dialog"
+        aria-live="polite"
+        aria-modal="true"
+      ></div>
+
+      <div id="hint">Chạm vào đèn trời</div>
+
+      <audio id="bg-music" loop>
+        <source src="a.mp3" type="audio/mp3" />
+        Trình duyệt của bạn không hỗ trợ audio.
+      </audio>
+    </div>
+
+    <script>
+      /* ===== Starfield & meteors (unchanged) ===== */
+      const canvas = document.getElementById("starfield");
+      const ctx = canvas.getContext("2d");
+      let w,
+        h,
+        stars = [],
+        meteors = [];
+
+      function resizeCanvas() {
+        w = canvas.width = innerWidth;
+        h = canvas.height = innerHeight;
+        stars = [];
+        const count = Math.round((w * h) / 2200);
+        for (let i = 0; i < count; i++) {
+          stars.push({
+            x: Math.random() * w,
+            y: Math.random() * h,
+            r: Math.random() * 0.9 + 0.1,
+            a: Math.random() * 0.8 + 0.2,
+            t: Math.random() * 0.02 + 0.002,
+          });
+        }
+      }
+
+      function drawStars() {
+        ctx.clearRect(0, 0, w, h);
+        for (const s of stars) {
+          s.a += (Math.random() > 0.5 ? 1 : -1) * s.t;
+          s.a = Math.max(0.05, Math.min(1, s.a));
+          ctx.beginPath();
+          ctx.globalAlpha = s.a;
+          ctx.fillStyle = "#fff";
+          ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+      }
+
+      function createMeteor() {
+        const startX = Math.random() * w;
+        const startY = Math.random() * (h / 3);
+        const speed = Math.random() * 10 + 6;
+        meteors.push({
+          x: startX,
+          y: startY,
+          vx: speed + 6,
+          vy: speed / 2,
+          len: Math.random() * 120 + 100,
+          a: 1,
+        });
+      }
+
+      function drawMeteors() {
+        for (let i = meteors.length - 1; i >= 0; i--) {
+          const m = meteors[i];
+          const x2 = m.x - m.len;
+          const y2 = m.y - m.len / 2;
+          const g = ctx.createLinearGradient(m.x, m.y, x2, y2);
+          g.addColorStop(0, `rgba(255,255,255,${m.a})`);
+          g.addColorStop(1, "rgba(255,255,255,0)");
+          ctx.strokeStyle = g;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(m.x, m.y);
+          ctx.lineTo(x2, y2);
+          ctx.stroke();
+          m.x += m.vx;
+          m.y += m.vy;
+          m.a -= 0.02;
+          if (m.a <= 0 || m.x > w + 200 || m.y > h + 200) meteors.splice(i, 1);
+        }
+        ctx.strokeStyle = "#fff";
+        ctx.lineWidth = 1;
+      }
+
+      function loop() {
+        drawStars();
+        drawMeteors();
+        if (Math.random() < 0.01) createMeteor();
+        requestAnimationFrame(loop);
+      }
+
+      window.addEventListener("resize", resizeCanvas);
+      resizeCanvas();
+      loop();
+
+      /* ===== Wishes data (sequential) =====
+       Put your portrait images in the same folder: wish1.jpg ... wish5.jpg
+    */
+      const wishes = [
+        {
+          text: "Chúc bạn Khánh Linh trung thu thiệt vuii nhaaa!",
+          img: "3.jpg",
+        },
+        {
+          text: "Dù ở xa hong cùng đi chơi với nhau đượcc, nhưnggg",
+          img: "4.jpg",
+        },
+        { text: "Tui sẽ lunn ở bên bạnnn, vậy nênnn", img: "1.jpg" },
+        { text: "Khi bùn hay dận chuyện dìii, thìi", img: "5.jpg" },
+        { text: "Hãy nhớ đến tui nhaaaa!", img: "2.jpg" },
+      ];
+
+      // preload images
+      wishes.forEach((w) => {
+        const im = new Image();
+        im.src = w.img;
+      });
+
+      // sequential index (keeps state across clicks)
+      let wishIndex = 0;
+
+      const lanternContainer = document.getElementById("lantern-container");
+      const wishPopup = document.getElementById("wish-popup");
+
+      // show popup for a given index (portrait layout)
+      function showWishAt(i) {
+        const wObj = wishes[i % wishes.length];
+        wishPopup.innerHTML = `
+        <div class="wish-inner" role="document" style="height:100%;position:relative;">
+          <button class="wish-close" aria-label="Đóng">✕</button>
+          <div class="wish-card">
+            <div class="wish-media">
+              <img src="${wObj.img}" alt="Hình lời chúc" />
+            </div>
+            <div class="wish-text">${wObj.text}</div>
+          </div>
+        </div>
+      `;
+
+        // show popup
+        wishPopup.classList.add("show");
+        wishPopup.style.display = "block";
+
+        // attach handlers and cleanup token
+        const closeBtn = wishPopup.querySelector(".wish-close");
+        function onClose(e) {
+          e && e.stopPropagation();
+          hideWish();
+        }
+        closeBtn.addEventListener("click", onClose);
+
+        function stopProp(e) {
+          e.stopPropagation();
+        }
+        wishPopup.addEventListener("click", stopProp);
+
+        // store cleanup to remove listeners later
+        wishPopup._cleanup = () => {
+          closeBtn.removeEventListener("click", onClose);
+          wishPopup.removeEventListener("click", stopProp);
+          delete wishPopup._cleanup;
+        };
+      }
+
+      function hideWish() {
+        wishPopup.classList.remove("show");
+        if (typeof wishPopup._cleanup === "function") wishPopup._cleanup();
+        setTimeout(() => {
+          wishPopup.style.display = "none";
+          wishPopup.innerHTML = "";
+        }, 260);
+      }
+
+      // create lanterns (each click will show the next wish in order)
+      function createLantern() {
+        const wrapper = document.createElement("div");
+        wrapper.className = "lantern-wrapper";
+
+        const glow = document.createElement("div");
+        glow.className = "glow";
+
+        const lantern = document.createElement("img");
+        lantern.src = "./den.png";
+        lantern.className = "lantern swing";
+
+        // random layer sizing
+        const layer = Math.floor(Math.random() * 3) + 1;
+        let size = 40,
+          duration = 10000,
+          opacity = 0.8;
+        if (layer === 1) {
+          size = 20 + Math.random() * 20;
+          duration = 14000 + Math.random() * 5000;
+          opacity = 0.5;
+        } else if (layer === 2) {
+          size = 30 + Math.random() * 30;
+          duration = 12000 + Math.random() * 4000;
+          opacity = 0.7;
+        } else {
+          size = 40 + Math.random() * 40;
+          duration = 10000 + Math.random() * 3000;
+          opacity = 0.95;
+        }
+
+        lantern.style.width = size + "px";
+        wrapper.style.width = size + 40 + "px";
+        wrapper.style.left = Math.random() * 90 + "vw";
+        wrapper.style.bottom = "0px";
+        wrapper.style.opacity = opacity;
+
+        wrapper.appendChild(glow);
+        wrapper.appendChild(lantern);
+        lanternContainer.appendChild(wrapper);
+
+        const drift = Math.random() * 140 - 70;
+        const up = 120 + Math.random() * 40;
+
+        const anim = wrapper.animate(
+          [
+            { transform: "translate(0,0)", opacity: opacity },
+            { transform: `translate(${drift}px, -${up}vh)`, opacity: 0 },
+          ],
+          { duration: duration, easing: "linear", fill: "forwards" }
+        );
+
+        setTimeout(() => wrapper.remove(), duration);
+
+        // click shows next wish sequentially
+        lantern.addEventListener("click", (e) => {
+          e.stopPropagation();
+          showWishAt(wishIndex);
+          wishIndex = (wishIndex + 1) % wishes.length;
+        });
+
+        // hover/touch to show glow temporarily
+        wrapper.addEventListener("pointerenter", () => {
+          wrapper.classList.add("hover-active");
+          try {
+            anim.pause();
+          } catch (e) {}
+        });
+        wrapper.addEventListener("pointerleave", () => {
+          wrapper.classList.remove("hover-active");
+          try {
+            anim.play();
+          } catch (e) {}
+        });
+        wrapper.addEventListener(
+          "touchstart",
+          (ev) => {
+            wrapper.classList.add("hover-active");
+            setTimeout(() => wrapper.classList.remove("hover-active"), 900);
+          },
+          { passive: true }
+        );
+      }
+
+      // spawn lanterns
+      setInterval(createLantern, 500);
+
+      // close popup on outside click or Esc
+      document.addEventListener("click", () => {
+        if (wishPopup.classList.contains("show")) hideWish();
+      });
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") hideWish();
+      });
+
+      // music + hint
+      const bg = document.getElementById("bg-music");
+      const hint = document.getElementById("hint");
+      let musicStarted = false;
+      document.addEventListener("pointerdown", function startMusicOnce() {
+        if (!musicStarted && bg) {
+          bg.volume = 0;
+          bg.play()
+            .then(() => {
+              let v = 0;
+              const fadeIn = setInterval(() => {
+                v += 0.05;
+                if (v >= 0.9) {
+                  v = 0.9;
+                  clearInterval(fadeIn);
+                }
+                bg.volume = v;
+              }, 120);
+              musicStarted = true;
+              for (let i = 0; i < 4; i++) setTimeout(createLantern, i * 300);
+            })
+            .catch(() => {
+              console.log("Autoplay music blocked");
+            });
+        }
+        document.removeEventListener("pointerdown", startMusicOnce);
+      });
+
+      setTimeout(() => {
+        if (hint) hint.style.opacity = "1";
+        setTimeout(() => {
+          if (hint) hint.style.opacity = "0";
+        }, 5000);
+      }, 1000);
+    </script>
+  </body>
+</html>
